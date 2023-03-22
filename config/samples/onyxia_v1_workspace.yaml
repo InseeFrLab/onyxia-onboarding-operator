@@ -1,0 +1,13 @@
+apiVersion: onyxia.onyxia.sh/v1
+kind: Workspace
+metadata:
+  labels:
+    app.kubernetes.io/name: workspace
+    app.kubernetes.io/instance: workspace-sample
+    app.kubernetes.io/part-of: onyxia-onboarding-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: onyxia-onboarding-operator
+  name: workspace-sample
+spec:
+  namespace: titi
+  # TODO(user): Add fields here
