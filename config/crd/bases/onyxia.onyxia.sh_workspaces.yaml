@@ -35,6 +35,17 @@ spec:
           spec:
             description: WorkspaceSpec defines the desired state of Workspace
             properties:
+              bucket:
+                description: Addon defines the field to customize Addon component
+                properties:
+                  name:
+                    description: string should respect s3 patterns
+                    type: string
+                  quota:
+                    description: quota in Go
+                    format: int32
+                    type: integer
+                type: object
               namespace:
                 type: string
             type: object

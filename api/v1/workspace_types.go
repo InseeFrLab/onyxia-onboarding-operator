@@ -29,6 +29,8 @@ type WorkspaceSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	Namespace string `json:"namespace,omitempty"`
+
+	Bucket Bucket `json:"bucket,omitempty"`
 }
 
 // WorkspaceStatus defines the observed state of Workspace
@@ -60,4 +62,13 @@ type WorkspaceList struct {
 
 func init() {
 	SchemeBuilder.Register(&Workspace{}, &WorkspaceList{})
+}
+
+// Addon defines the field to customize Addon component
+type Bucket struct {
+	// string
+	//should respect s3 patterns
+	Name string `json:"name,omitempty"`
+	// quota in Go
+	Quota int32 `json:"quota,omitempty"`
 }

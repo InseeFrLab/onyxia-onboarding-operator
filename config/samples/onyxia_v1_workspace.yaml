@@ -10,4 +10,7 @@ metadata:
   name: workspace-sample
 spec:
   namespace: titi
+  bucket:
+    name: bucket-titi
+    quota: 1
   # TODO(user): Add fields here
