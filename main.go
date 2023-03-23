@@ -42,8 +42,8 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 	//env variable that control behaviour of operator
 	// WatchNamespaceEnvVar is the constant for env variable WATCH_NAMESPACE
-    // which specifies the Namespace to watch.
-    // An empty value means the operator is running with cluster scope.
+	// which specifies the Namespace to watch.
+	// An empty value means the operator is running with cluster scope.
 	watchNamespaceEnvVar = "WATCH_NAMESPACE"
 )
 
@@ -73,10 +73,10 @@ func main() {
 
 	watchNamespace, err := getWatchNamespace()
 	if err != nil {
-		setupLog.Error(err, "unable to get WatchNamespace, " +
-		"the manager will watch and manage resources in all namespaces")
-	}else{
-		setupLog.Info("the manager will watch crd in the namespace: "+watchNamespace)
+		setupLog.Error(err, "unable to get WatchNamespace, "+
+			"the manager will watch and manage resources in all namespaces")
+	} else {
+		setupLog.Info("the manager will watch crd in the namespace: " + watchNamespace)
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
@@ -86,7 +86,6 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "49dd0669.onyxia.sh",
-		Namespace: watchNamespace,
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
@@ -131,9 +130,9 @@ func main() {
 
 func getWatchNamespace() (string, error) {
 
-    ns, found := os.LookupEnv(watchNamespaceEnvVar)
-    if !found {
-        return "", fmt.Errorf("%s must be set", watchNamespaceEnvVar)
-    }
-    return ns, nil
+	ns, found := os.LookupEnv(watchNamespaceEnvVar)
+	if !found {
+		return "", fmt.Errorf("%s must be set", watchNamespaceEnvVar)
+	}
+	return ns, nil
 }

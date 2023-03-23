@@ -30,7 +30,7 @@ type WorkspaceSpec struct {
 
 	Namespace string `json:"namespace,omitempty"`
 
-	Bucket Bucket `json:"bucket,inline"`
+	Bucket Bucket `json:"bucket,omitempty"`
 }
 
 // WorkspaceStatus defines the observed state of Workspace
