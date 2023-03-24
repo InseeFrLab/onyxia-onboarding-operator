@@ -46,8 +46,8 @@ func (minioS3Client *MinioS3Client) SetQuota(name string,quota int32) error {
 	return nil
 }
 
-func newMinioS3Client(S3Config S3Config) *MinioS3Client {
-	
+func newMinioS3Client(S3Config *S3Config) *MinioS3Client {
+	log.Println("create minio clients")
 	minioClient, err := minio.New(S3Config.S3UrlEndpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(S3Config.AccessKey, S3Config.SecretKey, ""),
 		Secure: S3Config.UseSsl,
@@ -61,5 +61,5 @@ func newMinioS3Client(S3Config S3Config) *MinioS3Client {
         log.Fatalln(err)
     }
 
-	return &MinioS3Client{S3Config,*minioClient,*adminClient}
+	return &MinioS3Client{*S3Config,*minioClient,*adminClient}
 }

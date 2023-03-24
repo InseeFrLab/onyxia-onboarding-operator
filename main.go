@@ -61,20 +61,24 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
-	var s3endpointUrl string
+	var s3EndpointUrl string
 	var accessKey string
 	var secretKey string
 	var region string
+	var s3Provider string
+	var useSsl bool
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	flag.StringVar(&s3endpointUrl, "s3-endpoint-url", "http://locahost:9000", "adress of s3")
-	flag.StringVar(&accessKey, "s3-access-key", "", "The accessKey of the acount")
-	flag.StringVar(&secretKey, "s3-secret-key", "", "The secretKey of the acount")
+	flag.StringVar(&s3Provider, "s3-provider", "minio", "provider s3")
+	flag.StringVar(&s3EndpointUrl, "s3-endpoint-url", "localhost:9000", "adress of s3")
+	flag.StringVar(&accessKey, "s3-access-key", "ROOTNAME", "The accessKey of the acount")
+	flag.StringVar(&secretKey, "s3-secret-key", "CHANGEME123", "The secretKey of the acount")
 	flag.StringVar(&region, "region", "use-east-1", "The region")
+    flag.BoolVar(&useSsl, "useSsl", false, "ssl or not ")
 
 	opts := zap.Options{
 		Development: true,
@@ -120,7 +124,7 @@ func main() {
 	if err = (&controllers.WorkspaceReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		S3Config: &factory.S3Config{ S3UrlEndpoint:s3endpointUrl,Region:region,AccessKey:accessKey,SecretKey:secretKey},
+		S3Config: &factory.S3Config{ S3Provider: s3Provider, S3UrlEndpoint:s3EndpointUrl,Region:region,AccessKey:accessKey,SecretKey:secretKey},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Workspace")
 		os.Exit(1)

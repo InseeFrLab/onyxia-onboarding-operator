@@ -68,7 +68,7 @@ func (r *WorkspaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		namespaceConfiguration := &v1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{Name: onyxiaWorkspace.Spec.Namespace},
 		}
-		handleBucket(onyxiaWorkspace)
+		handleBucket(onyxiaWorkspace, r.S3Config)
 
 		r.Create(ctx, namespaceConfiguration)
 		logger.Info("Created / updated namespace", "namespace", onyxiaWorkspace.Namespace)
@@ -84,9 +84,9 @@ func (r *WorkspaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func handleBucket(onyxiaWorkspace *onyxiav1.Workspace){
+func handleBucket(onyxiaWorkspace *onyxiav1.Workspace, S3Config *factory.S3Config){
 //create bucket 
-		s3Client,err := factory.GetS3Client("mockedS3Provider",factory.S3Config{})
+		s3Client,err := factory.GetS3Client(S3Config.S3Provider,S3Config)
 		if(err != nil){
 			log.Log.Error(err, err.Error())
 		}

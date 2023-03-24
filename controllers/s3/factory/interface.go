@@ -13,6 +13,7 @@ type S3Client interface {
 }
 
 type S3Config struct {
+	S3Provider string
     S3UrlEndpoint  string
 	Region  string
 	AccessKey string
@@ -21,7 +22,7 @@ type S3Config struct {
 }
 
 
-func GetS3Client(s3Provider string, S3Config S3Config) (S3Client, error) {
+func GetS3Client(s3Provider string, S3Config *S3Config) (S3Client, error) {
 	if s3Provider == "mockedS3Provider" {
         return newMockedS3Client(), nil
     }
