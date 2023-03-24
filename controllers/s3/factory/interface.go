@@ -13,7 +13,10 @@ type S3Client interface {
 }
 
 type S3Config struct {
-    S3UrlEndpoit  string
+    S3UrlEndpoint  string
+	Region  string
+	AccessKey string
+	SecretKey string
 }
 
 
