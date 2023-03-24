@@ -17,6 +17,7 @@ type S3Config struct {
 	Region  string
 	AccessKey string
 	SecretKey string
+	UseSsl bool
 }
 
 
@@ -24,9 +25,9 @@ func GetS3Client(s3Provider string, S3Config S3Config) (S3Client, error) {
 	if s3Provider == "mockedS3Provider" {
         return newMockedS3Client(), nil
     }
-	//if s3Provider == "minio" {
-	//	return MinioClient(), nil
-	//}
+	if s3Provider == "minio" {
+		return newMinioS3Client(S3Config), nil
+	}
 	//todo others
 	return nil, fmt.Errorf("s3 provider "+s3Provider+"not supported")
 }

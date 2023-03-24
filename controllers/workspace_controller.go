@@ -35,6 +35,7 @@ import (
 type WorkspaceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	S3Config *factory.S3Config
 }
 
 //+kubebuilder:rbac:groups=onyxia.onyxia.sh,resources=workspaces,verbs=get;list;watch;create;update;patch;delete
@@ -56,10 +57,8 @@ func (r *WorkspaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// TODO(user): your logic here
 	logger.Info("⚡️ Event received! ⚡️")
 	logger.Info("Request: ", "req", req)
-
 	onyxiaWorkspace := &onyxiav1.Workspace{}
 	err := r.Get(ctx, req.NamespacedName, onyxiaWorkspace)
-
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Info(fmt.Sprintf("Workspace %s has been removed. NOOP", req.Name))

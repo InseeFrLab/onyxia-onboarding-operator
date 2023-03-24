@@ -5,7 +5,7 @@ import (
 	"log"
 )
 
-type MockedS3Client struct{ S3Client }
+type MockedS3Client struct{  }
 
 func (mockedS3Provider *MockedS3Client) BucketExists(name string) (bool, error) {
 	log.Println("check if bucket "+name+"exists")
