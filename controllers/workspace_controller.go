@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	onyxiav1 "github.com/inseefrlab/onyxia-onboarding-operator/api/v1"
+	"github.com/inseefrlab/onyxia-onboarding-operator/controllers/s3/factory"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,6 +35,7 @@ import (
 type WorkspaceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	S3Config *factory.S3Config
 }
 
 //+kubebuilder:rbac:groups=onyxia.onyxia.sh,resources=workspaces,verbs=get;list;watch;create;update;patch;delete
@@ -55,10 +57,8 @@ func (r *WorkspaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// TODO(user): your logic here
 	logger.Info("⚡️ Event received! ⚡️")
 	logger.Info("Request: ", "req", req)
-
 	onyxiaWorkspace := &onyxiav1.Workspace{}
 	err := r.Get(ctx, req.NamespacedName, onyxiaWorkspace)
-
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Info(fmt.Sprintf("Workspace %s has been removed. NOOP", req.Name))
@@ -68,6 +68,7 @@ func (r *WorkspaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		namespaceConfiguration := &v1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{Name: onyxiaWorkspace.Spec.Namespace},
 		}
+		handleBucket(onyxiaWorkspace, r.S3Config)
 
 		r.Create(ctx, namespaceConfiguration)
 		logger.Info("Created / updated namespace", "namespace", onyxiaWorkspace.Namespace)
@@ -81,4 +82,28 @@ func (r *WorkspaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&onyxiav1.Workspace{}).
 		Complete(r)
+}
+
+func handleBucket(onyxiaWorkspace *onyxiav1.Workspace, S3Config *factory.S3Config){
+//create bucket 
+		s3Client,err := factory.GetS3Client(S3Config.S3Provider,S3Config)
+		if(err != nil){
+			log.Log.Error(err, err.Error())
+		}
+		found, err:= s3Client.BucketExists(onyxiaWorkspace.Spec.Bucket.Name)
+		if(err != nil){
+			log.Log.Error(err, err.Error())
+		}
+		if(!found){
+			s3Client.CreateBucket(onyxiaWorkspace.Spec.Bucket.Name)
+			s3Client.SetQuota(onyxiaWorkspace.Spec.Bucket.Name,onyxiaWorkspace.Spec.Bucket.Quota)
+		}else {
+			quota,err:=s3Client.GetQuota(onyxiaWorkspace.Spec.Bucket.Name)
+			if(err != nil){
+				log.Log.Error(err, err.Error())
+			}
+			if(quota!=onyxiaWorkspace.Spec.Bucket.Quota){
+				s3Client.SetQuota(onyxiaWorkspace.Spec.Bucket.Name,onyxiaWorkspace.Spec.Bucket.Quota)
+			}
+		}
 }
