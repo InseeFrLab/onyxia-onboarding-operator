@@ -34,7 +34,7 @@ import (
 // WorkspaceReconciler reconciles a Workspace object
 type WorkspaceReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme   *runtime.Scheme
 	S3Config *factory.S3Config
 }
 
@@ -84,26 +84,26 @@ func (r *WorkspaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func handleBucket(onyxiaWorkspace *onyxiav1.Workspace, S3Config *factory.S3Config){
-//create bucket 
-		s3Client,err := factory.GetS3Client(S3Config.S3Provider,S3Config)
-		if(err != nil){
+func handleBucket(onyxiaWorkspace *onyxiav1.Workspace, S3Config *factory.S3Config) {
+	//create bucket
+	s3Client, err := factory.GetS3Client(S3Config.S3Provider, S3Config)
+	if err != nil {
+		log.Log.Error(err, err.Error())
+	}
+	found, err := s3Client.BucketExists(onyxiaWorkspace.Spec.Bucket.Name)
+	if err != nil {
+		log.Log.Error(err, err.Error())
+	}
+	if !found {
+		s3Client.CreateBucket(onyxiaWorkspace.Spec.Bucket.Name)
+		s3Client.SetQuota(onyxiaWorkspace.Spec.Bucket.Name, onyxiaWorkspace.Spec.Bucket.Quota)
+	} else {
+		quota, err := s3Client.GetQuota(onyxiaWorkspace.Spec.Bucket.Name)
+		if err != nil {
 			log.Log.Error(err, err.Error())
 		}
-		found, err:= s3Client.BucketExists(onyxiaWorkspace.Spec.Bucket.Name)
-		if(err != nil){
-			log.Log.Error(err, err.Error())
+		if quota != onyxiaWorkspace.Spec.Bucket.Quota {
+			s3Client.SetQuota(onyxiaWorkspace.Spec.Bucket.Name, onyxiaWorkspace.Spec.Bucket.Quota)
 		}
-		if(!found){
-			s3Client.CreateBucket(onyxiaWorkspace.Spec.Bucket.Name)
-			s3Client.SetQuota(onyxiaWorkspace.Spec.Bucket.Name,onyxiaWorkspace.Spec.Bucket.Quota)
-		}else {
-			quota,err:=s3Client.GetQuota(onyxiaWorkspace.Spec.Bucket.Name)
-			if(err != nil){
-				log.Log.Error(err, err.Error())
-			}
-			if(quota!=onyxiaWorkspace.Spec.Bucket.Quota){
-				s3Client.SetQuota(onyxiaWorkspace.Spec.Bucket.Name,onyxiaWorkspace.Spec.Bucket.Quota)
-			}
-		}
+	}
 }

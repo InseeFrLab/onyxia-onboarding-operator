@@ -57,7 +57,6 @@ func init() {
 
 func main() {
 
-
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
@@ -78,7 +77,7 @@ func main() {
 	flag.StringVar(&accessKey, "s3-access-key", "ROOTNAME", "The accessKey of the acount")
 	flag.StringVar(&secretKey, "s3-secret-key", "CHANGEME123", "The secretKey of the acount")
 	flag.StringVar(&region, "region", "use-east-1", "The region")
-    flag.BoolVar(&useSsl, "useSsl", false, "ssl or not ")
+	flag.BoolVar(&useSsl, "useSsl", false, "ssl or not ")
 
 	opts := zap.Options{
 		Development: true,
@@ -122,9 +121,9 @@ func main() {
 	}
 
 	if err = (&controllers.WorkspaceReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		S3Config: &factory.S3Config{ S3Provider: s3Provider, S3UrlEndpoint:s3EndpointUrl,Region:region,AccessKey:accessKey,SecretKey:secretKey},
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		S3Config: &factory.S3Config{S3Provider: s3Provider, S3UrlEndpoint: s3EndpointUrl, Region: region, AccessKey: accessKey, SecretKey: secretKey},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Workspace")
 		os.Exit(1)
