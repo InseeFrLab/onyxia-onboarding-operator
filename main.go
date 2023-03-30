@@ -30,6 +30,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	onyxiav1 "github.com/inseefrlab/onyxia-onboarding-operator/api/v1"
@@ -120,10 +121,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	s3Config := &factory.S3Config{S3Provider: s3Provider, S3UrlEndpoint: s3EndpointUrl, Region: region, AccessKey: accessKey, SecretKey: secretKey}
+	s3Client, err := factory.GetS3Client(s3Config.S3Provider, s3Config)
+	if err != nil {
+		log.Log.Error(err, err.Error())
+		os.Exit(1)
+	}
 	if err = (&controllers.WorkspaceReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
-		S3Config: &factory.S3Config{S3Provider: s3Provider, S3UrlEndpoint: s3EndpointUrl, Region: region, AccessKey: accessKey, SecretKey: secretKey},
+		S3Client: &s3Client,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Workspace")
 		os.Exit(1)

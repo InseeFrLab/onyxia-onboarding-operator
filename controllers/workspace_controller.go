@@ -38,7 +38,7 @@ import (
 type WorkspaceReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
-	S3Config *factory.S3Config
+	S3Client *factory.S3Client
 }
 
 //+kubebuilder:rbac:groups=onyxia.onyxia.sh,resources=workspaces,verbs=get;list;watch;create;update;patch;delete
@@ -70,7 +70,7 @@ func (r *WorkspaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			ObjectMeta: metav1.ObjectMeta{Name: onyxiaWorkspace.Spec.Namespace},
 		}
 
-		err = handleBucket(onyxiaWorkspace, r.S3Config)
+		err = handleBucket(onyxiaWorkspace, *r.S3Client)
 		if err != nil {
 			log.Log.Error(err, err.Error())
 			meta.SetStatusCondition(&onyxiaWorkspace.Status.Conditions,
@@ -124,13 +124,8 @@ func (r *WorkspaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func handleBucket(onyxiaWorkspace *onyxiav1.Workspace, S3Config *factory.S3Config) error {
+func handleBucket(onyxiaWorkspace *onyxiav1.Workspace, s3Client factory.S3Client) error {
 	//create bucket
-	s3Client, err := factory.GetS3Client(S3Config.S3Provider, S3Config)
-	if err != nil {
-		log.Log.Error(err, err.Error())
-		return fmt.Errorf("can't create an s3 client")
-	}
 	found, err := s3Client.BucketExists(onyxiaWorkspace.Spec.Bucket.Name)
 	if err != nil {
 		log.Log.Error(err, err.Error())
