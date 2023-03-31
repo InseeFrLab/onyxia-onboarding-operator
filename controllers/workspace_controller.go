@@ -26,6 +26,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -57,18 +58,14 @@ type WorkspaceReconciler struct {
 func (r *WorkspaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	onyxiaWorkspace := &onyxiav1.Workspace{}
-
 	err := r.Get(ctx, req.NamespacedName, onyxiaWorkspace)
-
+	//crl.createOrUpdate
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Info(fmt.Sprintf("Workspace %s has been removed. NOOP", req.Name))
 		}
 	} else {
 		logger.Info("OnyxiaWorskpace to reconcile: " + fmt.Sprintf("%b", &onyxiaWorkspace))
-		namespaceConfiguration := &v1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{Name: onyxiaWorkspace.Spec.Namespace},
-		}
 
 		err = handleBucket(onyxiaWorkspace, *r.S3Client)
 		if err != nil {
@@ -84,7 +81,14 @@ func (r *WorkspaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				})
 			return ctrl.Result{}, utilerrors.NewAggregate([]error{err, r.Status().Update(ctx, onyxiaWorkspace)})
 		}
-
+		namespaceConfiguration := &v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: onyxiaWorkspace.Spec.Namespace},
+		}
+		//cluster-scoped resource must not have a namespace-scoped owne
+		//err = ctrl.SetControllerReference(onyxiaWorkspace, namespaceConfiguration, r.Scheme)
+		if err != nil {
+			log.Log.Error(err, err.Error())
+		}
 		err = r.Create(ctx, namespaceConfiguration)
 		err = client.IgnoreAlreadyExists(err)
 		if err != nil {
@@ -101,10 +105,26 @@ func (r *WorkspaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			onyxiaWorkspace.Status.ObservedGeneration = onyxiaWorkspace.GetGeneration()
 			return ctrl.Result{}, utilerrors.NewAggregate([]error{err, r.Status().Update(ctx, onyxiaWorkspace)})
 		}
+		err = r.addResourceQuotaToNamespace(r.Client, onyxiaWorkspace)
+		err = client.IgnoreAlreadyExists(err)
+		if err != nil {
+			log.Log.Error(err, err.Error())
+			meta.SetStatusCondition(&onyxiaWorkspace.Status.Conditions,
+				metav1.Condition{
+					Type:               "OperatorDegraded",
+					Status:             metav1.ConditionFalse,
+					Reason:             "ReasonFailed",
+					LastTransitionTime: metav1.NewTime(time.Now()),
+					Message:            "failed to put resourcequota",
+					ObservedGeneration: onyxiaWorkspace.GetGeneration(),
+				})
+			onyxiaWorkspace.Status.ObservedGeneration = onyxiaWorkspace.GetGeneration()
+			return ctrl.Result{}, utilerrors.NewAggregate([]error{err, r.Status().Update(ctx, onyxiaWorkspace)})
+		}
 		logger.Info("Created / updated namespace", "namespace", onyxiaWorkspace.Namespace)
 		onyxiaWorkspace.Status.ObservedGeneration = onyxiaWorkspace.GetGeneration()
 		meta.SetStatusCondition(&onyxiaWorkspace.Status.Conditions, metav1.Condition{
-			Type:               "OperatorSuccess",
+			Type:               "OperatorSuccessful",
 			Status:             metav1.ConditionTrue,
 			Reason:             "ReasonSucceeded",
 			LastTransitionTime: metav1.NewTime(time.Now()),
@@ -121,6 +141,8 @@ func (r *WorkspaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 func (r *WorkspaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&onyxiav1.Workspace{}).
+		//Owns(&v1.Namespace{}).
+		Owns(&v1.ResourceQuota{}).
 		Complete(r)
 }
 
@@ -155,6 +177,30 @@ func handleBucket(onyxiaWorkspace *onyxiav1.Workspace, s3Client factory.S3Client
 				return fmt.Errorf("can't set quota for " + onyxiaWorkspace.Spec.Bucket.Name)
 			}
 		}
+	}
+	return nil
+}
+
+func (r *WorkspaceReconciler) addResourceQuotaToNamespace(c client.Client, onyxiaWorkspace *onyxiav1.Workspace) error {
+	// Créer un objet ResourceQuota
+	quota := &v1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "quota-" + onyxiaWorkspace.Name,
+			Namespace: onyxiaWorkspace.Namespace,
+		},
+		Spec: v1.ResourceQuotaSpec{
+			Hard: v1.ResourceList{
+				v1.ResourceLimitsCPU: resource.MustParse("10000"),
+			},
+		},
+	}
+
+	// set owner reference to recreate quota
+	ctrl.SetControllerReference(onyxiaWorkspace, quota, r.Scheme)
+	err := c.Create(context.Background(), quota)
+	err = client.IgnoreAlreadyExists(err)
+	if err != nil {
+		return fmt.Errorf("failed to create ResourceQuota: %v", err)
 	}
 	return nil
 }
