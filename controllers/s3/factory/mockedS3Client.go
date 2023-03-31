@@ -12,7 +12,7 @@ func (mockedS3Provider *MockedS3Client) BucketExists(name string) (bool, error) 
 	return false, nil
 }
 
-func (mockedS3Provider *MockedS3Client) GetQuota(name string) (int32, error) {
+func (mockedS3Provider *MockedS3Client) GetQuota(name string) (int64, error) {
 	log.Println("bucket " + name + " get quota")
 	return 1, nil
 }
@@ -27,7 +27,7 @@ func (mockedS3Provider *MockedS3Client) DeleteBucket(name string) error {
 	return nil
 }
 
-func (mockedS3Provider *MockedS3Client) SetQuota(name string, quota int32) error {
+func (mockedS3Provider *MockedS3Client) SetQuota(name string, quota int64) error {
 	log.Println("set quota " + fmt.Sprint(quota) + "on bucket " + name + "exists")
 	return nil
 }
