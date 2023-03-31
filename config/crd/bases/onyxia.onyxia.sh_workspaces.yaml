@@ -41,6 +41,11 @@ spec:
                   name:
                     description: string should respect s3 patterns
                     type: string
+                  paths:
+                    description: default paths
+                    items:
+                      type: string
+                    type: array
                   quota:
                     description: quota in Go
                     format: int32
@@ -48,6 +53,19 @@ spec:
                 type: object
               namespace:
                 type: string
+              quota:
+                properties:
+                  admin:
+                    additionalProperties:
+                      type: string
+                    description: key value of resourcequota override by admin
+                    type: object
+                  default:
+                    additionalProperties:
+                      type: string
+                    description: string key value of resourcequota default from onyxia
+                    type: object
+                type: object
             type: object
           status:
             description: WorkspaceStatus defines the observed state of Workspace
