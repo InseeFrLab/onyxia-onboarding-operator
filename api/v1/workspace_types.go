@@ -73,7 +73,7 @@ type Bucket struct {
 	//should respect s3 patterns
 	Name string `json:"name,omitempty"`
 	// quota in Go
-	Quota int32 `json:"quota,omitempty"`
+	Quota Quota `json:"quota,omitempty"`
 	//default paths
 	Paths []string `json:"paths,omitempty"`
 }
