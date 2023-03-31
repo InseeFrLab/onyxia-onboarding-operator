@@ -25,6 +25,7 @@ import (
 	"github.com/inseefrlab/onyxia-onboarding-operator/controllers/s3/factory"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -164,6 +165,13 @@ func handleBucket(onyxiaWorkspace *onyxiav1.Workspace, s3Client factory.S3Client
 			log.Log.Error(err, err.Error())
 			return fmt.Errorf("can't set quota for bucket " + onyxiaWorkspace.Spec.Bucket.Name)
 		}
+		for _, v := range onyxiaWorkspace.Spec.Bucket.Paths {
+			err = s3Client.CreatePath(onyxiaWorkspace.Spec.Bucket.Name, v)
+			if err != nil {
+				log.Log.Error(err, err.Error())
+				return fmt.Errorf("can't create path " + v)
+			}
+		}
 	} else {
 		quota, err := s3Client.GetQuota(onyxiaWorkspace.Spec.Bucket.Name)
 		if err != nil {
@@ -177,30 +185,75 @@ func handleBucket(onyxiaWorkspace *onyxiav1.Workspace, s3Client factory.S3Client
 				return fmt.Errorf("can't set quota for " + onyxiaWorkspace.Spec.Bucket.Name)
 			}
 		}
+		for _, v := range onyxiaWorkspace.Spec.Bucket.Paths {
+			err = s3Client.PathExists(onyxiaWorkspace.Spec.Bucket.Name, v)
+			if err != nil {
+				log.Log.Error(err, err.Error())
+				return fmt.Errorf("can't check path " + onyxiaWorkspace.Spec.Bucket.Name)
+			}
+			err = s3Client.CreatePath(onyxiaWorkspace.Spec.Bucket.Name, v)
+			if err != nil {
+				log.Log.Error(err, err.Error())
+				return fmt.Errorf("can't create path " + v)
+			}
+		}
 	}
 	return nil
 }
 
 func (r *WorkspaceReconciler) addResourceQuotaToNamespace(c client.Client, onyxiaWorkspace *onyxiav1.Workspace) error {
 	// Créer un objet ResourceQuota
+	mergedMap := onyxiaWorkspace.Spec.Quota.Default
+	for k, v := range onyxiaWorkspace.Spec.Quota.Admin {
+		mergedMap[k] = v
+	}
+	resourceLimit := v1.ResourceList{}
+
+	for k, v := range mergedMap {
+		fmt.Println(k)
+		switch k {
+		case v1.ResourcePods.String():
+			resourceLimit[v1.ResourcePods] = resource.MustParse(v)
+		case v1.ResourceRequestsCPU.String():
+			resourceLimit[v1.ResourceRequestsCPU] = resource.MustParse(v)
+		case v1.ResourceRequestsMemory.String():
+			resourceLimit[v1.ResourceRequestsMemory] = resource.MustParse(v)
+		case v1.ResourceLimitsCPU.String():
+			fmt.Println(v)
+			resourceLimit[v1.ResourceLimitsCPU] = resource.MustParse(v)
+		case v1.ResourceLimitsMemory.String():
+			fmt.Println(v)
+			resourceLimit[v1.ResourceLimitsMemory] = resource.MustParse(v)
+		case v1.ResourceRequestsStorage.String():
+			resourceLimit[v1.ResourceRequestsStorage] = resource.MustParse(v)
+
+		default:
+
+		}
+	}
+
 	quota := &v1.ResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "quota-" + onyxiaWorkspace.Name,
 			Namespace: onyxiaWorkspace.Namespace,
 		},
 		Spec: v1.ResourceQuotaSpec{
-			Hard: v1.ResourceList{
-				v1.ResourceLimitsCPU: resource.MustParse("10000"),
-			},
+			Hard: resourceLimit,
 		},
 	}
-
+	// ctrl.CreateOrUpdate
 	// set owner reference to recreate quota
 	ctrl.SetControllerReference(onyxiaWorkspace, quota, r.Scheme)
+	//on crée
 	err := c.Create(context.Background(), quota)
-	err = client.IgnoreAlreadyExists(err)
-	if err != nil {
-		return fmt.Errorf("failed to create ResourceQuota: %v", err)
+	if apierrors.IsAlreadyExists(err) {
+		//on udate
+		c.Update(context.Background(), quota)
+	} else {
+		err = client.IgnoreAlreadyExists(err)
+		if err != nil {
+			return fmt.Errorf("failed to create ResourceQuota: %v", err)
+		}
 	}
 	return nil
 }
