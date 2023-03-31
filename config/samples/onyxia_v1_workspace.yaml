@@ -10,7 +10,16 @@ metadata:
   name: workspace-sample
 spec:
   namespace: titi
+  quota:
+    default:
+      "limits.cpu": "20"
+      "limits.memory": "20"
+    admin:
+      "limits.cpu": "30"
   bucket:
     name: bucket-titi
-    quota: 1
+    quota: 100000000
+    paths:
+      - diffusion
+      - sensible
   # TODO(user): Add fields here

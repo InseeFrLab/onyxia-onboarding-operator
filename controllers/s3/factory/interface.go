@@ -8,8 +8,10 @@ type S3Client interface {
 	BucketExists(name string) (bool, error)
 	CreateBucket(name string) error
 	DeleteBucket(name string) error
-	SetQuota(name string, quota int32) error
-	GetQuota(name string) (int32, error)
+	SetQuota(name string, quota int64) error
+	GetQuota(name string) (int64, error)
+	CreatePath(bucketname string, name string) error
+	PathExists(bucketname string, name string) error
 }
 
 type S3Config struct {
