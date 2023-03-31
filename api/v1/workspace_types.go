@@ -29,8 +29,8 @@ type WorkspaceSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	Namespace string `json:"namespace,omitempty"`
-
-	Bucket Bucket `json:"bucket,omitempty"`
+	Quota     Quota  `json:"quota,omitempty"`
+	Bucket    Bucket `json:"bucket,omitempty"`
 }
 
 // WorkspaceStatus defines the observed state of Workspace
@@ -74,4 +74,14 @@ type Bucket struct {
 	Name string `json:"name,omitempty"`
 	// quota in Go
 	Quota int32 `json:"quota,omitempty"`
+	//default paths
+	Paths []string `json:"paths,omitempty"`
+}
+
+type Quota struct {
+	// string
+	// key value of resourcequota default from onyxia
+	Default map[string]string `json:"default,omitempty"`
+	// key value of resourcequota override by admin
+	Admin map[string]string `json:"admin,omitempty"`
 }
