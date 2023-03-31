@@ -48,19 +48,8 @@ spec:
                     type: array
                   quota:
                     description: quota in Go
-                    properties:
-                      admin:
-                        additionalProperties:
-                          type: string
-                        description: key value of resourcequota override by admin
-                        type: object
-                      default:
-                        additionalProperties:
-                          type: string
-                        description: string key value of resourcequota default from
-                          onyxia
-                        type: object
-                    type: object
+                    format: int64
+                    type: integer
                 type: object
               namespace:
                 type: string
