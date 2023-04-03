@@ -11,7 +11,7 @@ type S3Client interface {
 	SetQuota(name string, quota int64) error
 	GetQuota(name string) (int64, error)
 	CreatePath(bucketname string, name string) error
-	PathExists(bucketname string, name string) error
+	PathExists(bucketname string, name string) (bool, error)
 }
 
 type S3Config struct {

@@ -18,18 +18,18 @@ func (mockedS3Provider *MockedS3Client) GetQuota(name string) (int64, error) {
 }
 
 func (mockedS3Provider *MockedS3Client) CreateBucket(name string) error {
-	log.Println("create bucket " + name + "exists")
+	log.Println("create bucket " + name + " exists")
 	return nil
 }
 
 func (mockedS3Provider *MockedS3Client) CreatePath(bucketname string, name string) error {
-	log.Println("create path " + name + "exists")
+	log.Println("create path " + name + " exists")
 	return nil
 }
 
-func (mockedS3Provider *MockedS3Client) PathExists(bucketname string, name string) error {
-	log.Println("check if  path " + name + "exists")
-	return nil
+func (mockedS3Provider *MockedS3Client) PathExists(bucketname string, name string) (bool, error) {
+	log.Println("check if  path " + name + " exists")
+	return false, nil
 }
 
 func (mockedS3Provider *MockedS3Client) DeleteBucket(name string) error {

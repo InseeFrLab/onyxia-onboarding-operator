@@ -33,7 +33,9 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 // WorkspaceReconciler reconciles a Workspace object
@@ -60,90 +62,99 @@ func (r *WorkspaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	logger := log.FromContext(ctx)
 	onyxiaWorkspace := &onyxiav1.Workspace{}
 	err := r.Get(ctx, req.NamespacedName, onyxiaWorkspace)
+
 	//crl.createOrUpdate
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Info(fmt.Sprintf("Workspace %s has been removed. NOOP", req.Name))
+			//should clean up here
+			return ctrl.Result{}, nil
 		}
-	} else {
-		logger.Info("OnyxiaWorskpace to reconcile: " + fmt.Sprintf("%b", &onyxiaWorkspace))
+	}
+	// logger.Info("OnyxiaWorskpace to reconcile: " + fmt.Sprintf("%b", &onyxiaWorkspace))
 
-		err = handleBucket(onyxiaWorkspace, *r.S3Client)
-		if err != nil {
-			log.Log.Error(err, err.Error())
-			meta.SetStatusCondition(&onyxiaWorkspace.Status.Conditions,
-				metav1.Condition{
-					Type:               "OperatorDegraded",
-					Status:             metav1.ConditionFalse,
-					Reason:             "ReasonFailed",
-					LastTransitionTime: metav1.NewTime(time.Now()),
-					Message:            err.Error(),
-					ObservedGeneration: onyxiaWorkspace.GetGeneration(),
-				})
-			return ctrl.Result{}, utilerrors.NewAggregate([]error{err, r.Status().Update(ctx, onyxiaWorkspace)})
-		}
-		namespaceConfiguration := &v1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{Name: onyxiaWorkspace.Spec.Namespace},
-		}
-		//cluster-scoped resource must not have a namespace-scoped owne
-		//err = ctrl.SetControllerReference(onyxiaWorkspace, namespaceConfiguration, r.Scheme)
-		if err != nil {
-			log.Log.Error(err, err.Error())
-		}
-		err = r.Create(ctx, namespaceConfiguration)
-		err = client.IgnoreAlreadyExists(err)
-		if err != nil {
-			log.Log.Error(err, err.Error())
-			meta.SetStatusCondition(&onyxiaWorkspace.Status.Conditions,
-				metav1.Condition{
-					Type:               "OperatorDegraded",
-					Status:             metav1.ConditionFalse,
-					Reason:             "ReasonFailed",
-					LastTransitionTime: metav1.NewTime(time.Now()),
-					Message:            "failed to create namespace",
-					ObservedGeneration: onyxiaWorkspace.GetGeneration(),
-				})
-			onyxiaWorkspace.Status.ObservedGeneration = onyxiaWorkspace.GetGeneration()
-			return ctrl.Result{}, utilerrors.NewAggregate([]error{err, r.Status().Update(ctx, onyxiaWorkspace)})
-		}
-		err = r.addResourceQuotaToNamespace(r.Client, onyxiaWorkspace)
-		err = client.IgnoreAlreadyExists(err)
-		if err != nil {
-			log.Log.Error(err, err.Error())
-			meta.SetStatusCondition(&onyxiaWorkspace.Status.Conditions,
-				metav1.Condition{
-					Type:               "OperatorDegraded",
-					Status:             metav1.ConditionFalse,
-					Reason:             "ReasonFailed",
-					LastTransitionTime: metav1.NewTime(time.Now()),
-					Message:            "failed to put resourcequota",
-					ObservedGeneration: onyxiaWorkspace.GetGeneration(),
-				})
-			onyxiaWorkspace.Status.ObservedGeneration = onyxiaWorkspace.GetGeneration()
-			return ctrl.Result{}, utilerrors.NewAggregate([]error{err, r.Status().Update(ctx, onyxiaWorkspace)})
-		}
-		logger.Info("Created / updated namespace", "namespace", onyxiaWorkspace.Namespace)
-		onyxiaWorkspace.Status.ObservedGeneration = onyxiaWorkspace.GetGeneration()
-		meta.SetStatusCondition(&onyxiaWorkspace.Status.Conditions, metav1.Condition{
-			Type:               "OperatorSuccessful",
-			Status:             metav1.ConditionTrue,
-			Reason:             "ReasonSucceeded",
-			LastTransitionTime: metav1.NewTime(time.Now()),
-			Message:            "operator successfully reconciling",
-			ObservedGeneration: onyxiaWorkspace.GetGeneration(),
-		})
+	err = handleBucket(onyxiaWorkspace, *r.S3Client)
+	if err != nil {
+		log.Log.Error(err, err.Error())
+		meta.SetStatusCondition(&onyxiaWorkspace.Status.Conditions,
+			metav1.Condition{
+				Type:               "OperatorDegraded",
+				Status:             metav1.ConditionFalse,
+				Reason:             "ReasonFailed",
+				LastTransitionTime: metav1.NewTime(time.Now()),
+				Message:            err.Error(),
+				ObservedGeneration: onyxiaWorkspace.GetGeneration(),
+			})
 		return ctrl.Result{}, utilerrors.NewAggregate([]error{err, r.Status().Update(ctx, onyxiaWorkspace)})
 	}
+	namespaceConfiguration := &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: onyxiaWorkspace.Spec.Namespace},
+	}
+	//cluster-scoped resource must not have a namespace-scoped owne
+	//err = ctrl.SetControllerReference(onyxiaWorkspace, namespaceConfiguration, r.Scheme)
+	if err != nil {
+		log.Log.Error(err, err.Error())
+	}
+	err = r.Create(ctx, namespaceConfiguration)
+	err = client.IgnoreAlreadyExists(err)
+	if err != nil {
+		log.Log.Error(err, err.Error())
+		meta.SetStatusCondition(&onyxiaWorkspace.Status.Conditions,
+			metav1.Condition{
+				Type:               "OperatorDegraded",
+				Status:             metav1.ConditionFalse,
+				Reason:             "ReasonFailed",
+				LastTransitionTime: metav1.NewTime(time.Now()),
+				Message:            "failed to create namespace",
+				ObservedGeneration: onyxiaWorkspace.GetGeneration(),
+			})
+		onyxiaWorkspace.Status.ObservedGeneration = onyxiaWorkspace.GetGeneration()
+		return ctrl.Result{}, utilerrors.NewAggregate([]error{err, r.Status().Update(ctx, onyxiaWorkspace)})
+	}
+	err = r.addResourceQuotaToNamespace(r.Client, onyxiaWorkspace)
+	err = client.IgnoreAlreadyExists(err)
+	if err != nil {
+		log.Log.Error(err, err.Error())
+		meta.SetStatusCondition(&onyxiaWorkspace.Status.Conditions,
+			metav1.Condition{
+				Type:               "OperatorDegraded",
+				Status:             metav1.ConditionFalse,
+				Reason:             "ReasonFailed",
+				LastTransitionTime: metav1.NewTime(time.Now()),
+				Message:            "failed to put resourcequota",
+				ObservedGeneration: onyxiaWorkspace.GetGeneration(),
+			})
+		onyxiaWorkspace.Status.ObservedGeneration = onyxiaWorkspace.GetGeneration()
+		return ctrl.Result{}, utilerrors.NewAggregate([]error{err, r.Status().Update(ctx, onyxiaWorkspace)})
+	}
+	logger.Info("Created / updated namespace", "namespace", onyxiaWorkspace.Namespace)
+	onyxiaWorkspace.Status.ObservedGeneration = onyxiaWorkspace.GetGeneration()
+	meta.SetStatusCondition(&onyxiaWorkspace.Status.Conditions, metav1.Condition{
+		Type:               "OperatorSuccessful",
+		Status:             metav1.ConditionTrue,
+		Reason:             "ReasonSucceeded",
+		LastTransitionTime: metav1.NewTime(time.Now()),
+		Message:            "operator successfully reconciling",
+		ObservedGeneration: onyxiaWorkspace.GetGeneration(),
+	})
+	return ctrl.Result{}, utilerrors.NewAggregate([]error{err, r.Status().Update(ctx, onyxiaWorkspace)})
 
-	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *WorkspaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&onyxiav1.Workspace{}).
+		// WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithEventFilter(predicate.Funcs{
+			CreateFunc: resourceKindPredicate{}.Create,
+			UpdateFunc: resourceGenerationOrFinalizerChangedPredicate{}.Update,
+			//DeleteFunc:  deleteFunc,
+			//	GenericFunc: genericFunc
+		}).
 		//Owns(&v1.Namespace{}).
-		Owns(&v1.ResourceQuota{}).
+		// Owns(&v1.ResourceQuota{}).
 		Complete(r)
 }
 
@@ -186,15 +197,17 @@ func handleBucket(onyxiaWorkspace *onyxiav1.Workspace, s3Client factory.S3Client
 			}
 		}
 		for _, v := range onyxiaWorkspace.Spec.Bucket.Paths {
-			err = s3Client.PathExists(onyxiaWorkspace.Spec.Bucket.Name, v)
+			found, err = s3Client.PathExists(onyxiaWorkspace.Spec.Bucket.Name, v)
 			if err != nil {
 				log.Log.Error(err, err.Error())
 				return fmt.Errorf("can't check path " + onyxiaWorkspace.Spec.Bucket.Name)
 			}
-			err = s3Client.CreatePath(onyxiaWorkspace.Spec.Bucket.Name, v)
-			if err != nil {
-				log.Log.Error(err, err.Error())
-				return fmt.Errorf("can't create path " + v)
+			if !found {
+				err = s3Client.CreatePath(onyxiaWorkspace.Spec.Bucket.Name, v)
+				if err != nil {
+					log.Log.Error(err, err.Error())
+					return fmt.Errorf("can't create path " + v)
+				}
 			}
 		}
 	}
@@ -244,10 +257,11 @@ func (r *WorkspaceReconciler) addResourceQuotaToNamespace(c client.Client, onyxi
 	// ctrl.CreateOrUpdate
 	// set owner reference to recreate quota
 	ctrl.SetControllerReference(onyxiaWorkspace, quota, r.Scheme)
+	controllerutil.AddFinalizer(quota, "onyxia.onboarding/finalizer")
 	//on crée
 	err := c.Create(context.Background(), quota)
 	if apierrors.IsAlreadyExists(err) {
-		//on udate
+		//on update
 		c.Update(context.Background(), quota)
 	} else {
 		err = client.IgnoreAlreadyExists(err)

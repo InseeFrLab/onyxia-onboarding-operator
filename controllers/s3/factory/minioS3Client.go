@@ -39,7 +39,7 @@ func (minioS3Client *MinioS3Client) CreateBucket(name string) error {
 func (minioS3Client *MinioS3Client) CreatePath(bucketname string, name string) error {
 	log.Println("create path " + name + "in bucket" + bucketname)
 	emptyReader := bytes.NewReader([]byte(""))
-	_, err := minioS3Client.client.PutObject(context.Background(), bucketname, name, emptyReader, 0, minio.PutObjectOptions{})
+	_, err := minioS3Client.client.PutObject(context.Background(), bucketname, "/"+name+"/"+".keep", emptyReader, 0, minio.PutObjectOptions{})
 	if err != nil {
 		fmt.Println(err)
 		return fmt.Errorf("error on path creation" + bucketname + " " + name)
@@ -47,18 +47,27 @@ func (minioS3Client *MinioS3Client) CreatePath(bucketname string, name string) e
 	return nil
 }
 
-func (minioS3Client *MinioS3Client) PathExists(bucketname string, name string) error {
-	log.Println("check if path " + name + "exists in  bucket" + bucketname)
-	objectCh := minioS3Client.client.ListObjects(context.Background(),
-		bucketname,
-		minio.ListObjectsOptions{Prefix: name, MaxKeys: 1})
+func (minioS3Client *MinioS3Client) PathExists(bucketname string, name string) (bool, error) {
+	log.Println("check if path " + name + " exists in  bucket" + bucketname)
+	_, err := minioS3Client.client.
+		StatObject(context.Background(),
+			bucketname,
+			"/"+name+"/"+".keep",
+			minio.StatObjectOptions{})
 
-	for object := range objectCh {
-		if object.Err != nil {
-			return fmt.Errorf(object.Err.Error())
+	if err != nil {
+		if minio.ToErrorResponse(err).StatusCode == 404 {
+			fmt.Println("Object does not exist")
+			return false, nil
+		} else {
+			// There was an error.
+			return false, err
 		}
+	} else {
+		// Object exists.
+		fmt.Println("Object exists")
+		return true, nil
 	}
-	return nil
 }
 
 func (minioS3Client *MinioS3Client) DeleteBucket(name string) error {
